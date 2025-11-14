@@ -1,0 +1,32 @@
+# Environment variables
+.env
+
+# Model outputs
+zeller-mistral/
+*.ckpt
+*.safetensors
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files (optional - uncomment if you want to ignore JSON files)
+# *.json
+

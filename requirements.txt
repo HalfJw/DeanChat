@@ -6,4 +6,5 @@ bitsandbytes>=0.41.0
 accelerate>=0.24.0
 huggingface-hub>=0.17.0
 python-dotenv>=1.0.0
+sentencepiece>=0.1.99
 

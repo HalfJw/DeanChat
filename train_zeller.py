@@ -82,15 +82,48 @@ if not torch.cuda.is_available():
 gpu_name = torch.cuda.get_device_name(0)
 gpu_memory_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
 cuda_version = torch.version.cuda
+compute_capability = torch.cuda.get_device_capability(0)
 
 print("=" * 60)
 print("GPU Setup")
 print("=" * 60)
 print(f"GPU: {gpu_name}")
 print(f"GPU Memory: {gpu_memory_gb:.2f} GB")
+print(f"Compute Capability: {compute_capability[0]}.{compute_capability[1]}")
 print(f"CUDA Version: {cuda_version}")
 print(f"PyTorch Version: {torch.__version__}")
 print("=" * 60)
+
+# Test if CUDA actually works (RTX 5070 and other new GPUs may not be supported yet)
+print("\nTesting CUDA compatibility...")
+try:
+    test_tensor = torch.randn(10, 10).cuda()
+    result = torch.matmul(test_tensor, test_tensor)
+    del test_tensor, result
+    torch.cuda.empty_cache()
+    print("✓ CUDA test passed - GPU is ready for training!")
+except RuntimeError as e:
+    if "no kernel image is available" in str(e) or "CUDA error" in str(e):
+        print("\n" + "=" * 60)
+        print("ERROR: GPU Compute Capability Not Supported")
+        print("=" * 60)
+        print(f"Your GPU ({gpu_name}) has compute capability {compute_capability[0]}.{compute_capability[1]}")
+        print(f"but PyTorch {torch.__version__} doesn't have kernels compiled for it yet.")
+        print("\nSolutions:")
+        print("1. Install PyTorch nightly with CUDA 12.8 support (recommended for RTX 5070):")
+        print("   pip install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128")
+        print("2. Wait for PyTorch stable release to add support for your GPU")
+        print("3. Build PyTorch from source with your compute capability:")
+        print("   https://github.com/pytorch/pytorch#from-source")
+        print("4. Use a different GPU if available")
+        print("\nFor RTX 5070 (Blackwell), PyTorch nightly with CUDA 12.8+ is required.")
+        print("=" * 60)
+        raise RuntimeError(
+            f"CUDA kernels not available for compute capability {compute_capability[0]}.{compute_capability[1]}. "
+            "See error message above for solutions."
+        ) from e
+    else:
+        raise
 
 # Check if GPU has enough memory (4-bit quantized model needs ~4-6GB)
 if gpu_memory_gb < 6:
@@ -173,7 +206,7 @@ def format_instruction(text):
     # Format using Mistral's chat template
     messages = [
         {"role": "user", "content": instruction},
-        {"role": "assistant", "content": text}
+        {"role": "zellerbot", "content": text}
     ]
     
     # Use the tokenizer's chat template
@@ -220,16 +253,23 @@ data_collator = DataCollatorForLanguageModeling(
 
 # --- 6. Training settings ---
 print("\nConfiguring training arguments...")
+# Check if GPU supports bfloat16 (RTX 30xx, 40xx, 50xx, A100, etc.)
+supports_bf16 = torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8
+if supports_bf16:
+    print("GPU supports bfloat16 - using bf16 for faster and more stable training")
+else:
+    print("GPU does not support bfloat16 - using fp16 instead")
+
 args = TrainingArguments(
     output_dir="./zeller-mistral",
-    per_device_train_batch_size=2,  # Adjust based on GPU memory (reduce if OOM)
-    gradient_accumulation_steps=4,  # Effective batch size = 2 * 4 = 8
+    per_device_train_batch_size=4,  # Increased for RTX 5070 with 12GB VRAM
+    gradient_accumulation_steps=2,  # Effective batch size = 4 * 2 = 8
     num_train_epochs=3,
     logging_steps=10,
     save_steps=500,
     save_strategy="steps",
-    fp16=True,  # Use mixed precision for faster training
-    bf16=False,  # Set to True if you have Ampere+ GPU (RTX 30xx, A100, etc.)
+    fp16=not supports_bf16,  # Use fp16 only if bf16 not supported
+    bf16=supports_bf16,  # Use bf16 for modern GPUs (RTX 30xx, 40xx, 50xx, A100, etc.)
     learning_rate=2e-4,
     optim="paged_adamw_8bit",  # Memory-efficient optimizer
     report_to="none",

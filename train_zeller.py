@@ -185,28 +185,79 @@ dataset = load_dataset("json", data_files="zeller.json")
 
 def format_instruction(text):
     """Format text as an instruction-response pair for chatbot training"""
-    # Create varied instructions that would prompt this response
-    # This helps the model learn to respond to different question styles
-    instructions = [
-        "Can you explain this?",
-        "What should I know about this?",
-        "Tell me about this topic.",
-        "How does this work?",
-        "What are the requirements?",
-        "Can you provide more information?",
-        "I have a question about this.",
-        "What do I need to know?",
-        "Explain this to me.",
-        "Help me understand this.",
-    ]
+    text_lower = text.lower()
     
-    # Randomly select an instruction format for variety
-    instruction = random.choice(instructions)
+    # Create topic-specific question-answer pairs based on content
+    # Fire spinning related
+    if "fire spinning" in text_lower:
+        fire_spinning_questions = [
+            "Do you like fire spinning?",
+            "Do you like fire spinning",
+            "Tell me about fire spinning.",
+            "What is fire spinning?",
+            "What do you like to do?",
+            "What are your hobbies?",
+            "What's your favorite activity?",
+        ]
+        instruction = random.choice(fire_spinning_questions)
+    
+    # Comic book related
+    elif "comic" in text_lower or "spider-man" in text_lower or "spiderman" in text_lower:
+        comic_questions = [
+            "What is your favorite comic book?",
+            "What is your favorite comic book character?",
+            "Do you like comic books?",
+            "Tell me about comic books.",
+            "What do you collect?",
+            "What are your interests?",
+        ]
+        instruction = random.choice(comic_questions)
+    
+    # Personal introduction
+    elif any(text.startswith(stmt) for stmt in ["I am Dean Zeller", "My name is Dean"]):
+        personal_questions = [
+            "Who are you?",
+            "Can you introduce yourself?",
+            "Tell me about yourself.",
+            "Hi Dean, tell me about yourself.",
+            "What's your name?",
+        ]
+        instruction = random.choice(personal_questions)
+    
+    # Class/assignment related
+    elif any(word in text_lower for word in ["assignment", "class", "grade", "student", "homework", "exam", "quiz"]):
+        class_questions = [
+            "What are the requirements?",
+            "How does this assignment work?",
+            "What should I know about this?",
+            "Can you explain the class requirements?",
+            "What do I need to know about this?",
+            "Tell me about the assignment.",
+        ]
+        instruction = random.choice(class_questions)
+    
+    # General/other topics
+    else:
+        # Create varied instructions that would prompt this response
+        instructions = [
+            "Can you explain this?",
+            "What should I know about this?",
+            "Tell me about this topic.",
+            "How does this work?",
+            "What are the requirements?",
+            "Can you provide more information?",
+            "I have a question about this.",
+            "What do I need to know?",
+            "Explain this to me.",
+            "Help me understand this.",
+        ]
+        # Randomly select an instruction format for variety
+        instruction = random.choice(instructions)
     
     # Format using Mistral's chat template
     messages = [
         {"role": "user", "content": instruction},
-        {"role": "zellerbot", "content": text}
+        {"role": "assistant", "content": text}
     ]
     
     # Use the tokenizer's chat template
